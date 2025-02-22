@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Health - Password Utility</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+</head>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Password Health</h1>
+            <p class="info">Password: <strong>{{ password }}</strong></p>
+            <p class="info">Strength: <span class="{{ 'weak' if strength == 0 else 'medium' if strength == 1 else 'strong' }}">
+                {{ "Weak" if strength == 0 else "Medium" if strength == 1 else "Strong" }}</span></p>
+            {% if tips %}
+                <h2>Improvement Tips</h2>
+                <ul class="tips">
+                    {% for tip in tips %}
+                        <li>{{ tip }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <a href="/" class="btn primary">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

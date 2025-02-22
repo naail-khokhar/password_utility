@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Password Utility</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+</head>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Password Utility</h1>
+            <h2>Login</h2>
+            {% if error %}
+                <p class="message error">{{ error }}</p>
+            {% endif %}
+            {% if success %}
+                <p class="message success">{{ success }}</p>
+            {% endif %}
+            <form method="POST" action="/login" class="form">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                <label for="mnemonic">Mnemonic</label>
+                <input type="password" id="mnemonic" name="mnemonic" placeholder="Enter your mnemonic" required>
+                <button type="submit" class="btn primary">Login</button>
+            </form>
+             <label style="display: block; text-align: center; margin: 20px 0; padding: 10px; font-weight: bold;">or</label>
+            <h2>Register</h2>
+            <form method="POST" action="/register" class="form">
+                <label for="reg-username">Username</label>
+                <input type="text" id="reg-username" name="username" placeholder="Choose a username" required>
+                <button type="submit" class="btn primary">Register</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

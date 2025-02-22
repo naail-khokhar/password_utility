@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Password Utility</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+</head>
+</head>
+<body>
+         <div class="container">
+        <div class="card">
+            <h1>Password Vault</h1>
+            {% if error %}
+                <p class="message error">{{ error }}</p>
+            {% endif %}
+            {% if success %}
+                <p class="message success">{{ success }}</p>
+            {% endif %}
+            <div class="vault-list">
+                {% for entry in vault.passwords %}
+                    <div class="vault-item">
+                        <span class="site" onclick="togglePassword(this)">{{ entry.site }}</span>
+                        <span class="password hidden">{{ entry.password }}</span>
+                        <form method="POST" action="/delete_password" class="delete-form">
+                            <input type="hidden" name="index" value="{{ loop.index0 }}">
+                            <button type="submit" class="delete-btn">×</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+            <h2>Add Password</h2>
+            <form method="POST" action="/add_password" class="form">
+                <label for="site-select">Site</label>
+                <select id="site-select" name="site" onchange="toggleCustomSite(this)" required>
+                    <option value="" disabled selected>Select a site</option>
+                    <option value="Google">Google</option>
+                    <option value="Yahoo">Yahoo</option>
+                    <option value="X">X</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Reddit">Reddit</option>
+                    <option value="Bluesky">Bluesky</option>
+                    <option value="Snapchat">Snapchat</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="Spotify">Spotify</option>
+                    <option value="Netflix">Netflix</option>
+                    <option value="Amazon">Amazon</option>
+                    <option value="eBay">eBay</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Microsoft">Microsoft</option>
+                    <option value="Zoom">Zoom</option>
+                    <option value="Slack">Slack</option>
+                    <option value="Skype">Skype</option>
+                    <option value="Dropbox">Dropbox</option>
+                    <option value="Discord">Discord</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" id="custom-site" name="custom-site" placeholder="Enter site" class="hidden" oninput="updateSiteValue()">
+                <label for="password">Password</label>
+                <input type="text" id="password" name="password" placeholder="Enter password" required>
+                <button type="submit" class="btn primary">Add Password</button>
+            </form>
+            <div class="button-group">
+                <form method="POST" action="/generate_password" class="inline-form">
+                    <button type="submit" class="btn secondary">Generate Password</button>
+                </form>
+                <form method="POST" action="/check_password" class="inline-form">
+                    <input type="text" name="password" placeholder="Check this password" class="inline-input" required>
+                    <button type="submit" class="btn secondary">Check Strength</button>
+                </form>
+                <form method="POST" action="/delete_account" class="inline-form" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
+                    <button type="submit" class="btn danger">Delete Account</button>
+                </form>
+                <a href="/logout" class="btn secondary">Logout</a>
+            </div>
+        </div>
+    </div>
+ <script>
+        function togglePassword(element) {
+            const vaultItem = element.parentElement;
+            const passwordSpan = vaultItem.querySelector('.password');
+            passwordSpan.classList.toggle('hidden');
+        }
+
+        function toggleCustomSite(select) {
+            const customInput = document.getElementById('custom-site');
+            if (select.value === 'Other') {
+                customInput.classList.remove('hidden');
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                customInput.value = '';
+                select.name = 'site'; // Ensure site is submitted
+            }
+        }
+
+        function updateSiteValue() {
+            const select = document.getElementById('site-select');
+            const customInput = document.getElementById('custom-site');
+            if (select.value === 'Other') {
+                select.name = ''; // Disable select's name
+                customInput.name = 'site'; // Use custom input's value
+            }
+        }
+    </script>
+</body>
+</html>

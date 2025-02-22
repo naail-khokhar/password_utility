@@ -1,0 +1,320 @@
+/* Reset default styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Global styles */
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+}
+
+/* Container for centering content */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    width: 100%;
+}
+
+/* Card styling */
+.card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+}
+
+/* Headings */
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #34495e;
+    margin: 40px 0 20px;
+}
+
+/* Form styling */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+/* Select dropdown */
+select {
+    padding: 15px;
+    font-size: 1.2rem;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    outline: none;
+    width: 100%;
+    background: #fff;
+    color: #333;
+    transition: border-color 0.3s ease;
+}
+
+select:focus {
+    border-color: #2980b9;
+}
+
+/* Custom site input (reuses existing input styles, just ensure .hidden works) */
+.hidden {
+    display: none;
+}
+label {
+    font-size: 1.2rem;
+    color: #34495e;
+    margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="password"] {
+    padding: 15px;
+    font-size: 1.2rem;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.3s ease;
+    width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: #2980b9;
+}
+
+/* Buttons */
+.btn {
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+    background: #3498db;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.3s ease;
+    display: inline-block;
+}
+
+.btn:hover {
+    background: #2980b9;
+}
+
+.btn.primary {
+    background: #3498db;
+}
+
+.btn.primary:hover {
+    background: #2980b9;
+}
+
+.btn.secondary {
+    background: #7f8c8d;
+}
+
+.btn.secondary:hover {
+    background: #6c757d;
+}
+
+.btn.danger {
+    background: #e74c3c;
+}
+
+.btn.danger:hover {
+    background: #c0392b;
+}
+
+/* Delete button as an 'x' */
+.delete-form {
+    display: inline-block;
+    margin-left: 15px;
+}
+
+.delete-btn {
+    background: #e74c3c;
+    border: none;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    border-radius: 50%;
+    text-align: center;
+    transition: background 0.3s ease;
+    padding: 0;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+}
+
+/* Messages */
+.message {
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+}
+
+.message.error {
+    color: #e74c3c;
+    background: #fceae9;
+}
+
+.message.success {
+    color: #27ae60;
+    background: #e9f7ef;
+    white-space: pre-wrap; /* Preserve line breaks for mnemonic */
+}
+
+/* Vault list */
+.vault-list {
+    margin-bottom: 30px;
+}
+
+.vault-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    word-break: break-all;
+}
+
+.site {
+    cursor: pointer;
+    color: #34495e;
+    font-weight: 700;
+}
+
+.password {
+    margin-left: 10px;
+    color: #7f8c8d;
+}
+
+.hidden {
+    display: none;
+}
+
+
+/* Strength indicators */
+.info {
+    font-size: 1.4rem;
+    margin: 20px 0;
+}
+
+.weak {
+    color: #e74c3c;
+    font-weight: 700;
+}
+
+.medium {
+    color: #f39c12;
+    font-weight: 700;
+}
+
+.strong {
+    color: #27ae60;
+    font-weight: 700;
+}
+
+/* Tips list */
+.tips {
+    list-style: none;
+    margin: 20px 0;
+    font-size: 1.2rem;
+    text-align: left;
+}
+
+.tips li {
+    padding: 10px 0;
+    color: #7f8c8d;
+}
+
+/* Button group */
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.inline-form {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.inline-input {
+    padding: 12px;
+    font-size: 1.2rem;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    outline: none;
+    width: 250px;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+    .card {
+        padding: 20px;
+        max-width: 100%;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    .btn,
+    .inline-input {
+        font-size: 1rem;
+        padding: 12px;
+    }
+
+    .inline-input {
+        width: 200px;
+    }
+
+    .button-group {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .delete-btn {
+        font-size: 1rem;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+    }
+}
