@@ -3,3 +3,6 @@ build/
 dist/
 .idea/
 flask_session/
+.DS_Store
+gui.spec
+static/.DS_Store
