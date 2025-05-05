@@ -1,93 +1,640 @@
+<!--
+    Main dashboard page for the Password Utility.
+    - Displays the user's password vault, grouped by category.
+    - Provides a collapsible sidebar for navigation and actions (password generation, health check, breach alerts).
+    - Includes modals for adding, editing passwords, generating passwords, and viewing breach alerts.
+    - Implements client-side search/filtering and theme toggling.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Password Utility</title>
+    <title>KeyVault - Dashboard</title>
+    <!-- Link Google Fonts and main stylesheet -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
-</head>
+    <!-- Set favicon -->
+    <link rel="icon" id="favicon" type="image/png" href="{{ url_for('static', filename='light-icon.png') }}">
+    <!-- Include theme handling script -->
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
+    <script>
+    // Minimal favicon theme switch
+    document.addEventListener('DOMContentLoaded', function() {
+        const favicon = document.getElementById('favicon');
+        function updateFavicon() {
+            const theme = document.documentElement.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            favicon.href = "{{ url_for('static', filename='') }}" + (theme === 'dark' ? 'dark-icon.png' : 'light-icon.png');
+        }
+        updateFavicon();
+        // Listen for theme changes
+        const observer = new MutationObserver(updateFavicon);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+    </script>
+    <style>
+        /* Styles specific to the sidebar menu and its toggle button */
+        .menu-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 40px;
+            height: 40px;
+            background: var(--card-bg);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, left 0.3s ease;
+        }
+        
+        /* Adjust menu toggle position when sidebar is active */
+        .sidebar.active + #overlay + .theme-toggle + .container .menu-toggle {
+            left: 270px; /* Move the hamburger menu button when sidebar is active */
+        }
+        
+        /* Style for shifted menu toggle (when sidebar is open) */
+        .menu-toggle.shifted {
+            transform: translateX(250px);
+        }
+        
+        /* Sidebar container styling */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background: var(--card-bg);
+            z-index: 1000;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            padding-top: 0; /* Ensure content starts from the top */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Style for active (visible) sidebar */
+        .sidebar.active { left: 0; }
+        
+        /* Sidebar menu list styling */
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        
+        /* Title/header style within the sidebar sections */
+        .sidebar-title {
+            padding: 10px 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-light, #64748b);
+        }
+        
+        /* Sidebar menu item link styling */
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        
+        .sidebar-menu a:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        
+        /* SVG icon styling within sidebar links */
+        .sidebar-menu a svg {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+        }
+        
+        /* Styling for the account section at the bottom of the sidebar */
+        .account-section {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Semi-transparent overlay shown when sidebar is active */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+    </style>
 </head>
 <body>
-         <div class="container">
-        <div class="card">
-            <h1>Password Vault</h1>
+    <!-- Hamburger menu button to toggle the sidebar -->
+    <div class="menu-toggle" id="menu-toggle">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </div>
+    
+    <!-- Collapsible Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <!-- KeyVault Logo -->
+        <div class="sidebar-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sidebar-logo-icon">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span class="sidebar-logo-text">KeyVault</span>
+        </div>
+        
+        <!-- Main menu sections container -->
+        <div class="menu-sections">
+            <!-- Password Vault section with filters -->
+            <!-- Each filter will show/hide vault entries based on their type (all, web logins, WiFi) -->
+            <div class="sidebar-title">Password Vault</div>
+            <ul class="sidebar-menu">
+                <!-- Filter links for vault items -->
+                <li><a href="#" class="active" data-filter="all">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    All Passwords
+                </a></li>
+                <li><a href="#" data-filter="logins">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Logins
+                </a></li>
+                <li><a href="#" data-filter="wifi">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <circle cx="12" cy="20" r="0.5"/>
+                      </svg>
+                    WiFi
+                </a></li>
+            </ul>
+            
+            <!-- Password Tools section -->
+            <div class="sidebar-title">Password Tools</div>
+            <ul class="sidebar-menu">
+                <!-- Links to trigger modals or focus elements -->
+                <li><a href="#" id="menu-generate-password">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                    Generate Password
+                </a></li>
+                <li><a href="#" id="menu-check-health">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    Check Password Health
+                </a></li>
+                <li><a href="#" id="menu-check-breaches">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <circle cx="12" cy="17" r="1" fill="currentColor"></circle>
+                    </svg>
+                    Data Breach Alerts
+                </a></li>
+            </ul>
+        </div>
+        
+        <!-- Account management section at the bottom -->
+        <!-- Contains critical actions like sign out and account deletion -->
+        <div class="account-section">
+            <div class="sidebar-title">Account</div>
+            <ul class="sidebar-menu">
+                <!-- Sign Out link -->
+                <li><a href="/logout">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Sign Out
+                </a></li>
+                <!-- Delete Account link -->
+                <li><a href="#" id="menu-delete-account" style="color: var(--danger, #e74c3c);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Delete Account
+                </a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Overlay element for dimming background when sidebar is open -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Theme toggle button (light/dark mode) -->
+    <div class="theme-toggle" onclick="toggleTheme()" id="theme-toggle">
+        <div id="theme-toggle-icon">
+            <!-- Icon will be inserted by theme.js -->
+        </div>
+    </div>
+    
+    <!-- Main content container -->
+    <div class="container">
+        <!-- Card holding the vault content -->
+        <div class="card card-container">
+            <!-- Header section for the vault, including title and search -->
+            <div class="vault-header">
+                <h1 style="width: 100%; text-align: center; margin-bottom: 15px;">Password Vault</h1>
+                <!-- Search icon button -->
+                <div class="search-icon" id="search-icon" style="position: absolute; top: 0; right: 0;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <!-- Search input box (initially hidden) -->
+                <div class="search-box" id="search-box" style="display: none; position: absolute; top: 0; right: 0;">
+                    <input type="text" id="search-input" placeholder="Search...">
+                </div>
+            </div>
+            <!-- Display error messages from Flask -->
             {% if error %}
                 <p class="message error">{{ error }}</p>
             {% endif %}
+            <!-- Display success messages from Flask, potentially with an Undo button -->
             {% if success %}
-                <p class="message success">{{ success }}</p>
+                <p class="message success" id="success-message">{{ success }}{% if show_undo %}<form id="undo-form" method="POST" action="/undo_delete" style="display: inline;"><button type="submit" class="undo-link" id="undo-link">Undo</button></form>{% endif %}</p>
             {% endif %}
+            <!-- Container for the list of password vault items -->
             <div class="vault-list">
+                <!-- Jinja logic to group passwords by category -->
+                {% set categories = {} %}
                 {% for entry in vault.passwords %}
-                    <div class="vault-item">
-                        <span class="site" onclick="togglePassword(this)">{{ entry.site }}</span>
-                        <span class="password hidden">{{ entry.password }}</span>
-                        <form method="POST" action="/delete_password" class="delete-form">
-                            <input type="hidden" name="index" value="{{ loop.index0 }}">
-                            <button type="submit" class="delete-btn">×</button>
-                        </form>
+                    {% set category = entry.category if entry.category else "Other" %}
+                    {% if category not in categories %}
+                        {% set _ = categories.update({category: []}) %}
+                    {% endif %}
+                    {% set _ = categories[category].append(entry) %}
+                {% endfor %}
+                
+                <!-- Loop through categories and display items -->
+                {% for category, entries in categories.items() %}
+                    <!-- Collapsible category header -->
+                    <h3 class="category-header" onclick="toggleCategory(this)">{{ category }} <span class="toggle-indicator">▼</span></h3>
+                    <!-- Content container for the category -->
+                    <div class="category-content">
+                        <!-- Loop through entries within the category -->
+                        {% for entry in entries %}
+                            <div class="vault-item">
+                                <!-- Password strength indicator circle -->
+                                <span class="strength-indicator {% if entry.strength == 0 %}weak{% elif entry.strength == 1 %}medium{% else %}strong{% endif %}" title="Password strength: {% if entry.strength == 0 %}Weak{% elif entry.strength == 1 %}Medium{% else %}Strong{% endif %}"></span>
+                                <!-- Display site name (or API name if applicable), clickable to toggle password visibility -->
+                                {% if entry.site == "API" and entry.api %}
+                                    <span class="site" onclick="togglePassword(this)">{{ entry.api }}</span>
+                                {% else %}
+                                    <span class="site" onclick="togglePassword(this)">{{ entry.site }}</span>
+                                {% endif %}
+                                <!-- Display username -->
+                                <span class="username">{{ entry.username }}</span>
+                                <!-- Hidden span containing the actual password -->
+                                <span class="password hidden">{{ entry.password }}</span>
+                                <!-- Edit button to open the edit modal -->
+                                <button class="edit-btn" onclick="showEditModal({{ vault.passwords.index(entry) }}, '{{ entry.site }}', '{{ entry.username }}', '{{ entry.password }}', '{{ entry.api|default('') }}', '{{ entry.url|default('') }}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                                        <path d="M12 20h9"></path>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        {% endfor %}
                     </div>
                 {% endfor %}
             </div>
-            <h2>Add Password</h2>
-            <form method="POST" action="/add_password" class="form">
-                <label for="site-select">Site</label>
-                <select id="site-select" name="site" onchange="toggleCustomSite(this)" required>
-                    <option value="" disabled selected>Select a site</option>
-                    <option value="Google">Google</option>
-                    <option value="Yahoo">Yahoo</option>
-                    <option value="X">X</option>
-                    <option value="Facebook">Facebook</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="LinkedIn">LinkedIn</option>
-                    <option value="Reddit">Reddit</option>
-                    <option value="Bluesky">Bluesky</option>
-                    <option value="Snapchat">Snapchat</option>
-                    <option value="TikTok">TikTok</option>
-                    <option value="YouTube">YouTube</option>
-                    <option value="Spotify">Spotify</option>
-                    <option value="Netflix">Netflix</option>
-                    <option value="Amazon">Amazon</option>
-                    <option value="eBay">eBay</option>
-                    <option value="Shopify">Shopify</option>
-                    <option value="PayPal">PayPal</option>
-                    <option value="Microsoft">Microsoft</option>
-                    <option value="Zoom">Zoom</option>
-                    <option value="Slack">Slack</option>
-                    <option value="Skype">Skype</option>
-                    <option value="Dropbox">Dropbox</option>
-                    <option value="Discord">Discord</option>
-                    <option value="Other">Other</option>
-                </select>
-                <input type="text" id="custom-site" name="custom-site" placeholder="Enter site" class="hidden" oninput="updateSiteValue()">
-                <label for="password">Password</label>
-                <input type="text" id="password" name="password" placeholder="Enter password" required>
-                <button type="submit" class="btn primary">Add Password</button>
-            </form>
+            <!-- Collapsible section header for adding a new password -->
+            <h2 class="category-header" onclick="toggleCategory(this)">Add Password <span class="toggle-indicator">▼</span></h2>
+            <!-- Content container for the add password form -->
+            <div class="category-content">
+                <!-- Form to add a new password entry -->
+                <!-- Handles website credentials, WiFi networks, and API keys with appropriate field adjustments -->
+                <form method="POST" action="/add_password" class="form">
+                    <!-- Site selection dropdown -->
+                    <label for="site-select">Site</label>
+                    <select id="site-select" name="site" onchange="toggleCustomSite(this); handleSiteChange();" required>
+                        <!-- Options for common sites, WiFi, API, Other -->
+                        <option value="" disabled selected>Select</option>
+                        <option value="Google">Google</option>
+                        <option value="Yahoo">Yahoo</option>
+                        <option value="X">X</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="LinkedIn">LinkedIn</option>
+                        <option value="Reddit">Reddit</option>
+                        <option value="Bluesky">Bluesky</option>
+                        <option value="TikTok">TikTok</option>
+                        <option value="YouTube">YouTube</option>
+                        <option value="Spotify">Spotify</option>
+                        <option value="Netflix">Netflix</option>
+                        <option value="Disney">Disney</option>
+                        <option value="Twitch">Twitch</option>
+                        <option value="Amazon">Amazon</option>
+                        <option value="eBay">eBay</option>
+                        <option value="Alibaba">Alibaba</option>
+                        <option value="Etsy">Etsy</option>
+                        <option value="PayPal">PayPal</option>
+                        <option value="Chase">Chase</option>
+                        <option value="HSBC">HSBC</option>
+                        <option value="Barclays">Barclays</option>
+                        <option value="HL">HL</option>
+                        <option value="Schwab">Schwab</option>
+                        <option value="Microsoft">Microsoft</option>
+                        <option value="Zoom">Zoom</option>
+                        <option value="Slack">Slack</option>
+                        <option value="Dropbox">Dropbox</option>
+                        <option value="Discord">Discord</option>
+                        <option value="GitHub">GitHub</option>
+                        <option value="Notion">Notion</option>
+                        <option value="Trello">Trello</option>
+                        <option value="Canva">Canva</option>
+                        <option value="WiFi">WiFi</option>
+                        <option value="API">API</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <!-- Input for custom site name (shown when 'Other' is selected) -->
+                    <input type="text" id="custom-site" name="custom-site" placeholder="Enter site" class="hidden" oninput="updateSiteValue()">
+                    <!-- Username/SSID input -->
+                    <label id="label-username" for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" required>
+                    <!-- API key input (shown when 'API' is selected) -->
+                    <label id="api-required-label" class="hidden">API (required)</label>
+                    <input type="text" id="api" name="api" class="hidden" placeholder="Enter API" required>
+                    <!-- URL input (shown for non-API/WiFi entries) -->
+                    <label id="url-field-label">URL</label>
+                    <input type="text" id="url" name="url" placeholder="Enter URL">
+                    <!-- Password input with inline generator button -->
+                    <label for="password">Password</label>
+                    <div class="input-button-container">
+                        <input type="text" id="password" name="password" placeholder="Enter password" required>
+                        <!-- Button to open the password generator modal -->
+                        <button type="button" id="show-password-generator" class="btn secondary generate-password-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 2l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3zm14 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2zm-6 5l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Submit button for adding the password -->
+                    <button type="submit" class="btn primary">Add Password</button>
+                </form>
+            </div>
+            <!-- Button group for inline actions (password health check) -->
             <div class="button-group">
-                <form method="POST" action="/generate_password" class="inline-form">
-                    <button type="submit" class="btn secondary">Generate Password</button>
+                <!-- Form to check a password's health -->
+                <form method="POST" action="/check_password" class="inline-form" style="width: 100%;">
+                    <div class="input-button-container" style="width: 100%;">
+                        <input type="text" name="password" placeholder="Check this password" class="inline-input" required style="width: 100%; padding-right: 100px;">
+                        <!-- Button to submit the password for checking -->
+                        <button type="submit" class="btn secondary check-password-btn">Check</button>
+                    </div>
                 </form>
-                <form method="POST" action="/check_password" class="inline-form">
-                    <input type="text" name="password" placeholder="Check this password" class="inline-input" required>
-                    <button type="submit" class="btn secondary">Check Strength</button>
-                </form>
-                <form method="POST" action="/delete_account" class="inline-form" onsubmit="return confirm('Are you sure you want to delete your account? This action cannot be undone.');">
-                    <button type="submit" class="btn danger">Delete Account</button>
-                </form>
-                <a href="/logout" class="btn secondary">Logout</a>
+            </div>
+            <!-- Logout button below the check password section -->
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/logout" class="btn secondary">Sign Out</a>
             </div>
         </div>
     </div>
- <script>
+    
+    <!-- Password Generator Modal -->
+    <!-- This modal works alongside the server API to create secure passwords based on user preferences -->
+    <div id="password-generator-modal" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Generate Strong Password</h2>
+                <button id="close-modal" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Form containing generator options -->
+                <form id="password-generator-form">
+                    <!-- Length slider -->
+                    <div class="form-group">
+                        <label for="password-length">Length: <span id="length-value">12</span></label>
+                        <input type="range" id="password-length" name="length" min="8" max="24" value="12" oninput="document.getElementById('length-value').textContent = this.value">
+                    </div>
+                    
+                    <!-- Checkbox for including symbols -->
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="use-symbols" name="symbols" checked>
+                        <label for="use-symbols">Include special characters (!@#$%^&*)</label>
+                    </div>
+                    
+                    <!-- Checkbox for memorable (word-based) password -->
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="memorable" name="memorable">
+                        <label for="memorable">Memorable password (words with numbers)</label>
+                    </div>
+                    
+                    <!-- Display area for the generated password with copy button -->
+                    <div class="form-group">
+                        <label for="generated-password">Generated Password:</label>
+                        <div class="password-generator">
+                            <input type="text" id="generated-password" readonly>
+                            <button type="button" id="copy-password" class="btn secondary">Copy</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <!-- Buttons to generate, use, or close -->
+                <button type="button" id="generate-btn" class="btn primary">Generate</button>
+                <button type="button" id="use-password-btn" class="btn secondary">Use This Password</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Password Modal -->
+    <!-- Dual-purpose modal for both editing and deleting passwords with appropriate permission checks -->
+    <div id="edit-modal" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Edit Password</h2>
+                <button id="close-edit-modal" class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Form for editing password entry details -->
+                <form id="edit-form" method="POST" action="/edit_password">
+                    <!-- Hidden input to store the index of the item being edited -->
+                    <input type="hidden" id="edit-index" name="index">
+                    <!-- Username/SSID input -->
+                    <div class="form-group">
+                        <label for="edit-username">Username/SSID</label>
+                        <input type="text" id="edit-username" name="username" required>
+                    </div>
+                    
+                    <!-- API key input (conditionally displayed) -->
+                    <div class="form-group" id="edit-api-container" style="display: none;">
+                        <label for="edit-api">API</label>
+                        <input type="text" id="edit-api" name="api">
+                    </div>
+                    
+                    <!-- URL input (conditionally displayed) -->
+                    <div class="form-group" id="edit-url-container">
+                        <label for="edit-url">URL</label>
+                        <input type="text" id="edit-url" name="url">
+                    </div>
+                    
+                    <!-- Password input -->
+                    <div class="form-group">
+                        <label for="edit-password">Password</label>
+                        <input type="text" id="edit-password" name="password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <!-- Delete button form (aligned left) -->
+                <form id="delete-form" method="POST" action="/delete_password" style="margin-right:auto">
+                    <input type="hidden" id="delete-index" name="index">
+                    <button type="submit" class="btn danger">Delete</button>
+                </form>
+                <!-- Cancel and Save Changes buttons (aligned right) -->
+                <button class="btn secondary" id="close-edit-btn">Cancel</button>
+                <button class="btn primary" onclick="document.getElementById('edit-form').submit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Breaches Modal -->
+    <!-- Fetches real-time breach information from the server, which sources from NewsAPI -->
+    <div id="breaches-modal" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Data Breach Alerts</h2>
+                <button id="close-breaches-modal" class="modal-close">×</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Loading spinner shown while fetching data -->
+                <div id="breaches-loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p style="text-align: center; color: #7f8c8d;">Checking for recent breaches...</p>
+                </div>
+                <!-- Error message shown if fetching fails -->
+                <div id="breaches-error" style="display: none;" class="message error">
+                    Could not fetch breach information. Please try again later.
+                </div>
+                
+                <!-- Section for breaches related to user's stored sites -->
+                <div id="user-sites-breaches" style="margin-bottom: 20px;">
+                    <h3 style="color: var(--heading-color); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Your Sites</h3>
+                    <div class="user-breach-content"></div> <!-- Content populated by JS -->
+                </div>
+                
+                <!-- Section for other general recent breaches -->
+                <div id="other-breaches" style="margin-top: 20px;">
+                    <h3 style="color: var(--heading-color); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Other Recent Breaches</h3>
+                    <div class="other-breach-content"></div> <!-- Content populated by JS -->
+                </div>
+                
+                <!-- Legacy results area (kept for potential compatibility, content now in new sections) -->
+                <div id="breaches-results"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn secondary" id="close-breaches-btn">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Include search functionality script -->
+    <!-- The search.js file implements efficient client-side searching -->
+    <script src="{{ url_for('static', filename='search.js') }}"></script>
+    
+    <script>
+        // --- Sidebar Menu Logic ---
+        // Toggle sidebar visibility when menu button is clicked
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const btn = this;
+            // toggle sidebar & overlay
+            const isActive = sidebar.classList.toggle('active');
+            overlay.style.display = isActive ? 'block' : 'none';
+            // shift hamburger
+            btn.classList.toggle('shifted', isActive);
+        });
+        
+        // Close sidebar when overlay is clicked
+        document.getElementById('overlay').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('menu-toggle').classList.remove('shifted'); // Fix hamburger button
+            this.style.display = 'none';
+        });
+        
+        // --- Sidebar Menu Item Actions ---
+        // Handle "Generate Password" menu item click
+        document.getElementById('menu-generate-password').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('show-password-generator').click(); // Trigger generator modal
+            // Close sidebar
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('overlay').style.display = 'none';
+        });
+        
+        // Handle "Check Password Health" menu item click
+        document.getElementById('menu-check-health').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Focus the password check input field
+            const passwordCheckInput = document.querySelector('form[action="/check_password"] input');
+            if (passwordCheckInput) passwordCheckInput.focus();
+            // Close sidebar
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('overlay').style.display = 'none';
+        });
+        
+        // Handle "Delete Account" menu item click
+        document.getElementById('menu-delete-account').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Show confirmation dialog before submitting delete request
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                // Create and submit a hidden form to trigger the delete action
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/delete_account';
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+        
+        // --- Vault Item Interaction ---
+        /**
+         * Toggles the visibility of the password within a vault item.
+         * @param {HTMLElement} element - The element clicked (usually the site name).
+         */
         function togglePassword(element) {
+            // Temporarily displays the password in plaintext.
+            // The password is then hidden again when clicked or when the page refreshes.
             const vaultItem = element.parentElement;
             const passwordSpan = vaultItem.querySelector('.password');
             passwordSpan.classList.toggle('hidden');
         }
 
+        // --- Add Password Form Logic ---
+        /**
+         * Shows or hides the custom site input field based on dropdown selection.
+         * @param {HTMLSelectElement} select - The site select dropdown element.
+         */
         function toggleCustomSite(select) {
             const customInput = document.getElementById('custom-site');
             if (select.value === 'Other') {
@@ -100,6 +647,9 @@
             }
         }
 
+        /**
+         * Updates the 'name' attribute for form submission when 'Other' site is selected.
+         */
         function updateSiteValue() {
             const select = document.getElementById('site-select');
             const customInput = document.getElementById('custom-site');
@@ -108,6 +658,502 @@
                 customInput.name = 'site'; // Use custom input's value
             }
         }
+
+        /**
+         * Handles changes in the site selection dropdown.
+         * Adjusts labels, required fields, and visibility for Username, API, and URL fields
+         * based on whether the entry is for a website, WiFi, or API key.
+         * Also fetches and auto-populates the URL for known sites.
+         */
+        function handleSiteChange() {
+            // Dynamic form field adjustment ensures appropriate fields are shown
+            // for each credential type (website, WiFi, API) to improve user experience
+            const siteSelect = document.getElementById("site-select");
+            const labelUser = document.getElementById("label-username");
+            const userField = document.getElementById("username");
+            const apiField = document.getElementById("api");
+            const urlField = document.getElementById("url");
+            
+            // Get selected site
+            const selectedSite = siteSelect.value;
+            
+            // Reset URL field first
+            urlField.value = "";
+            
+            if (selectedSite === "API") {
+                // Adjust fields for API entry
+                labelUser.textContent = "Name (optional)";
+                userField.required = false;
+                apiField.classList.remove("hidden");
+                apiField.required = true;
+                document.getElementById("api-required-label").classList.remove("hidden");
+                // Hide URL field for API entries
+                urlField.style.display = "none";
+                document.getElementById("url-field-label").style.display = "none";
+            } else if (selectedSite === "WiFi") {
+                // Adjust fields for WiFi entry
+                labelUser.textContent = "SSID";
+                userField.placeholder = "Enter SSID";
+                userField.required = true;
+                apiField.classList.add("hidden");
+                apiField.required = false;
+                document.getElementById("api-required-label").classList.add("hidden");
+                // Hide URL field for WiFi entries
+                urlField.style.display = "none";
+                document.getElementById("url-field-label").style.display = "none";
+            } else {
+                // Adjust fields for standard website entry
+                labelUser.textContent = "Username";
+                userField.placeholder = "Enter username";
+                userField.required = true;
+                apiField.classList.add("hidden");
+                apiField.required = false;
+                document.getElementById("api-required-label").classList.add("hidden");
+                // Show URL field for website entries
+                urlField.style.display = "";
+                document.getElementById("url-field-label").style.display = "";
+                
+                // Auto-populate URL for known sites via fetch request
+                if (selectedSite !== "Other" && selectedSite !== "") {
+                    fetch('/get_url?site=' + encodeURIComponent(selectedSite))
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.url) {
+                                urlField.value = data.url;
+                            }
+                        });
+                }
+            }
+        }
+        // Add event listener for site selection changes
+        document.getElementById("site-select").addEventListener("change", handleSiteChange);
+
+        // --- Password Generator Modal Logic ---
+        // Get references to modal elements
+        const modal = document.getElementById('password-generator-modal');
+        const showGeneratorBtn = document.getElementById('show-password-generator');
+        const closeModalBtn = document.getElementById('close-modal');
+        const generateBtn = document.getElementById('generate-btn');
+        const usePasswordBtn = document.getElementById('use-password-btn');
+        const copyPasswordBtn = document.getElementById('copy-password');
+        const generatedPasswordInput = document.getElementById('generated-password');
+        
+        // Event listener to show the modal
+        showGeneratorBtn.addEventListener('click', function() {
+            modal.classList.add('active');
+        });
+        
+        // Event listener to close the modal
+        closeModalBtn.addEventListener('click', function() {
+            modal.classList.remove('active');
+        });
+        
+        // Event listener for the 'Generate' button inside the modal
+        generateBtn.addEventListener('click', function() {
+            // Collect form data (length, symbols, memorable)
+            const formData = new FormData();
+            
+            formData.append('length', document.getElementById('password-length').value);
+            formData.append('symbols', document.getElementById('use-symbols').checked ? 'true' : 'false');
+            formData.append('memorable', document.getElementById('memorable').checked ? 'true' : 'false');
+            
+            // Fetch generated password from the server
+            fetch('/generate_password', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display generated password in the input field
+                generatedPasswordInput.value = data.password;
+            });
+        });
+        
+        // Event listener for the 'Copy' button
+        copyPasswordBtn.addEventListener('click', function() {
+            // Select and copy the generated password text
+            generatedPasswordInput.select();
+            document.execCommand('copy');
+            alert('Password copied to clipboard!');
+        });
+        
+        // Event listener for the 'Use This Password' button
+        usePasswordBtn.addEventListener('click', function() {
+            // Set the main password input field value and close the modal
+            document.getElementById('password').value = generatedPasswordInput.value;
+            modal.classList.remove('active');
+        });
+        
+        // Automatically generate a password when the modal is opened
+        showGeneratorBtn.addEventListener('click', function() {
+            generateBtn.click();
+        });
+
+        // --- Category Collapse/Expand Logic ---
+        /**
+         * Toggles the visibility of a category's content.
+         * @param {HTMLElement} headerElement - The category header element clicked.
+         */
+        function toggleCategory(headerElement) {
+            headerElement.classList.toggle("collapsed");
+            const content = headerElement.nextElementSibling;
+            content.classList.toggle("collapsed");
+        }
+
+        // --- Edit Password Modal Logic ---
+        // Get references to edit modal elements
+        const editModal = document.getElementById('edit-modal');
+        const closeEditModal = document.getElementById('close-edit-modal');
+        const closeEditBtn = document.getElementById('close-edit-btn');
+        
+        /**
+         * Populates and displays the edit modal with the selected item's data.
+         * @param {number} index - The index of the password entry in the vault array.
+         * @param {string} site - The site name.
+         * @param {string} username - The username/SSID.
+         * @param {string} password - The password.
+         * @param {string} api - The API key (if applicable).
+         * @param {string} url - The URL (if applicable).
+         */
+        function showEditModal(index, site, username, password, api, url) {
+            // Pre-populates the edit form with existing data and handles conditional fields
+            // based on the entry type (website, WiFi, API key)
+            // Set hidden index fields for edit and delete forms
+            document.getElementById('edit-index').value = index;
+            document.getElementById('delete-index').value = index;
+            // Populate input fields with current data
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-password').value = password;
+            document.getElementById('edit-url').value = url || '';
+            
+            // Conditionally show/hide API and URL fields based on entry type
+            if (api && api !== 'undefined') {
+                document.getElementById('edit-api').value = api;
+                document.getElementById('edit-api-container').style.display = 'block';
+                document.getElementById('edit-url-container').style.display = 'none';
+            } else if (site === 'WiFi') {
+                document.getElementById('edit-api').value = '';
+                document.getElementById('edit-api-container').style.display = 'none';
+                document.getElementById('edit-url-container').style.display = 'none';
+            } else {
+                document.getElementById('edit-api').value = '';
+                document.getElementById('edit-api-container').style.display = 'none';
+                document.getElementById('edit-url-container').style.display = 'block';
+            }
+            
+            // Show the modal
+            editModal.classList.add('active');
+        }
+        
+        // Event listener to close the edit modal (header 'x' button)
+        closeEditModal.addEventListener('click', function() {
+            editModal.classList.remove('active');
+        });
+        
+        // Event listener to close the edit modal (footer 'Cancel' button)
+        closeEditBtn.addEventListener('click', function() {
+            editModal.classList.remove('active');
+        });
+
+        // --- Data Breaches Modal Logic ---
+        // Get references to breach modal elements
+        const breachesModal = document.getElementById('breaches-modal');
+        const openBreachesBtn = document.getElementById('menu-check-breaches');
+        const closeBreachesModalBtn = document.getElementById('close-breaches-modal');
+        const closeBreachesFooterBtn = document.getElementById('close-breaches-btn');
+        const breachesLoadingDiv = document.getElementById('breaches-loading');
+        const breachesResultsDiv = document.getElementById('breaches-results');
+        const breachesErrorDiv = document.getElementById('breaches-error');
+
+        /**
+         * Shows the breaches modal and initiates fetching breach data.
+         */
+        function showBreachesModal() {
+            // Clear previous results and show loading indicator
+            document.querySelector('.user-breach-content').innerHTML = '';
+            document.querySelector('.other-breach-content').innerHTML = '';
+            
+            breachesResultsDiv.innerHTML = ''; // Clear legacy area
+            breachesLoadingDiv.style.display = 'block';
+            breachesErrorDiv.style.display = 'none';
+            breachesModal.classList.add('active');
+            // Close sidebar if open
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('overlay').style.display = 'none';
+
+            // Fetch breach data from the server endpoint
+            fetch('/check_all_breaches')
+                .then(response => {
+                    // Handle HTTP errors
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    breachesLoadingDiv.style.display = 'none';
+                    // Handle potential errors in the response data
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Populate the 'Your Sites' breaches section
+                    let userSitesHasBreaches = false;
+                    if (data.user_breaches && data.user_breaches.length > 0) {
+                        userSitesHasBreaches = true;
+                        const userBreachesHtml = data.user_breaches.map(breach => `
+                            <div class="breach-item">
+                                <div class="summary">${breach.summary}</div>
+                                <a href="${breach.news_link}" target="_blank" rel="noopener noreferrer" class="news-link">Read More</a>
+                                <span class="timestamp">Reported: ${new Date(breach.created_at || Date.now()).toLocaleString()}</span>
+                            </div>
+                        `).join('');
+                        document.querySelector('.user-breach-content').innerHTML = userBreachesHtml;
+                    } else {
+                        document.querySelector('.user-breach-content').innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:15px;">No recent breaches detected for your stored sites.</p>';
+                    }
+                    
+                    // Populate the 'Other Recent Breaches' section
+                    if (data.other_breaches && data.other_breaches.length > 0) {
+                        const otherBreachesHtml = data.other_breaches.map(breach => `
+                            <div class="breach-item">
+                                <div class="summary">${breach.summary}</div>
+                                <a href="${breach.news_link}" target="_blank" rel="noopener noreferrer" class="news-link">Read More</a>
+                                <span class="timestamp">Reported: ${new Date(breach.created_at || Date.now()).toLocaleString()}</span>
+                            </div>
+                        `).join('');
+                        document.querySelector('.other-breach-content').innerHTML = otherBreachesHtml;
+                    } else {
+                        document.querySelector('.other-breach-content').innerHTML = '<p style="text-align:center;color:#7f8c8d;padding:15px;">No other recent breach news available.</p>';
+                    }
+                })
+                .catch(error => {
+                    // Handle fetch errors (network, parsing, etc.)
+                    console.error('Error fetching breach data:', error);
+                    breachesLoadingDiv.style.display = 'none';
+                    breachesErrorDiv.style.display = 'block'; // Show error message
+                });
+        }
+
+        /**
+         * Hides the data breaches modal.
+         */
+        function hideBreachesModal() {
+            breachesModal.classList.remove('active');
+        }
+
+        // Event listener for the sidebar menu item to open the breaches modal
+        openBreachesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showBreachesModal();
+        });
+        // Event listeners for closing the breaches modal
+        closeBreachesModalBtn.addEventListener('click', hideBreachesModal);
+        closeBreachesFooterBtn.addEventListener('click', hideBreachesModal);
+        // Close modal if backdrop is clicked
+        breachesModal.addEventListener('click', (e) => {
+             if (e.target === breachesModal) {
+                 hideBreachesModal();
+             }
+        });
+
+        // --- Initialization and Search Event Listeners ---
+        // Initialize search functionality when the DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize search UI and event listeners (delegated to search.js)
+            initializeSearch();
+            
+            // Add input listener for live search filtering (delegated to search.js)
+            document.getElementById('search-input').addEventListener('input', performSearch);
+            
+            // Set timeout to hide the 'Undo' button after 5 seconds
+            const undoForm = document.getElementById('undo-form');
+            if (undoForm) {
+                setTimeout(() => {
+                    undoForm.style.display = 'none';
+                }, 5000); // 5 seconds timeout
+            }
+        });
+
+        // Event listeners for search UI interactions (show/hide box)
+        // These remain here as they interact directly with dashboard elements
+        document.getElementById('search-icon').addEventListener('click', function() {
+            showSearchBox(this); // Function defined in search.js
+        });
+        
+        // Listener to hide search box on click outside
+        document.addEventListener('click', function(e) {
+            handleClickOutsideSearch(e); // Function defined in search.js
+        });
+        
+        // Listener to hide search box on Escape key press
+        document.addEventListener('keydown', function(e) {
+            handleSearchEscape(e); // Function defined in search.js
+        });
+
+        // --- Client-Side Input Validation ---
+        /**
+         * Validates the username format and length.
+         * @param {string} username - The username to validate.
+         * @returns {object} - An object with 'valid' (boolean) and 'message' (string).
+         */
+        function validateUsername(username) {
+            // Client-side validation provides immediate feedback
+            if (!username) {
+                return { valid: false, message: "Username is required" };
+            }
+            if (username.length > 24) {
+                return { valid: false, message: "Username must be 24 characters or less" };
+            }
+            if (!/^[a-zA-Z0-9@._-]+$/.test(username)) {
+                return { valid: false, message: "Username can only contain letters, numbers, @, ., _, and -" };
+            }
+            return { valid: true, message: "" };
+        }
+        
+        /**
+         * Validates the password length.
+         * @param {string} password - The password to validate.
+         * @returns {object} - An object with 'valid' (boolean) and 'message' (string).
+         */
+        function validatePassword(password) {
+            if (!password) {
+                return { valid: false, message: "Password is required" };
+            }
+            if (password.length > 48) {
+                return { valid: false, message: "Password must be 48 characters or less" };
+            }
+            return { valid: true, message: "" };
+        }
+        
+        // Add submit event listener for the 'Add Password' form to perform client-side validation.
+        document.querySelector('form[action="/add_password"]').addEventListener('submit', function(e) {
+            // Validation runs both in the browser for UX and on the server for security
+            try {
+                // Check vault size limit
+                const vaultItems = document.querySelectorAll('.vault-item');
+                if (vaultItems.length >= 50) {
+                    alert("Your vault is full (maximum 50 passwords)");
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // Validate site name
+                const siteSelect = document.getElementById('site-select');
+                let site = siteSelect.value;
+                
+                if (site === "Other") {
+                    site = document.getElementById('custom-site').value.trim();
+                }
+                
+                if (!site) {
+                    alert("Site name is required");
+                    e.preventDefault();
+                    return false;
+                }
+                
+                if (site.length > 48) {
+                    alert("Site name must be 48 characters or less");
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // Validate username (conditionally)
+                if (site !== "API") {
+                    const username = document.getElementById('username').value.trim();
+                    const usernameValidation = validateUsername(username);
+                    if (!usernameValidation.valid) {
+                        alert(usernameValidation.message);
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+                
+                // Validate password
+                const password = document.getElementById('password').value;
+                const passwordValidation = validatePassword(password);
+                if (!passwordValidation.valid) {
+                    alert(passwordValidation.message);
+                    e.preventDefault();
+                    return false;
+                }
+            } catch (error) {
+                // Log validation errors but allow server-side validation to proceed
+                console.error("Form validation error:", error);
+            }
+        });
+        
+        // Add submit event listener for the 'Edit Password' form for client-side validation.
+        document.getElementById('edit-form').addEventListener('submit', function(e) {
+            try {
+                // Validate username
+                const username = document.getElementById('edit-username').value.trim();
+                const usernameValidation = validateUsername(username);
+                if (!usernameValidation.valid) {
+                    alert(usernameValidation.message);
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // Validate password
+                const password = document.getElementById('edit-password').value;
+                const passwordValidation = validatePassword(password);
+                if (!passwordValidation.valid) {
+                    alert(passwordValidation.message);
+                    e.preventDefault();
+                    return false;
+                }
+            } catch (error) {
+                // Log validation errors but allow server-side validation to proceed
+                console.error("Form validation error:", error);
+            }
+        });
+
+        // --- Sidebar Filter Logic ---
+        // Add click event listeners to sidebar filter links
+        document.querySelectorAll('.sidebar-menu a[data-filter]').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Update the active state of the menu item
+                document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Get the filter type (all, logins, wifi)
+                const filter = this.getAttribute('data-filter');
+                const vaultItems = document.querySelectorAll('.vault-item');
+                
+                // Iterate through vault items and show/hide based on the filter
+                vaultItems.forEach(item => {
+                    if (filter === 'all') {
+                        // Show all items
+                        item.style.display = 'flex';
+                    } else if (filter === 'logins') {
+                        // Show only non-WiFi/API items
+                        const siteName = item.querySelector('.site').textContent;
+                        if (siteName !== 'WiFi' && !siteName.includes('API')) {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    } else if (filter === 'wifi') {
+                        // Show only WiFi items
+                        const siteName = item.querySelector('.site').textContent;
+                        if (siteName === 'WiFi') {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    }
+                });
+                
+                // Close sidebar after selection (useful on mobile)
+                document.getElementById('sidebar').classList.remove('active');
+                document.getElementById('menu-toggle').classList.remove('shifted');
+                document.getElementById('overlay').style.display = 'none';
+            });
+        });
     </script>
 </body>
 </html>

@@ -1,22 +1,59 @@
-/* Reset default styles */
+/*
+    Main stylesheet for the KeyVault password manager web app.
+    - Defines light/dark theme variables using CSS custom properties.
+    - Styles core layout elements (body, container, card).
+    - Styles form elements (inputs, selects, buttons).
+    - Styles UI components like modals, sidebar, vault list items, messages, and strength indicators.
+    - Includes responsive design adjustments for smaller screens.
+*/
+
+/* Basic reset to remove default browser margins and paddings */
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
 }
 
-/* Global styles */
+/* CSS Custom Properties (Variables) for Theming */
+:root {
+    /* Light mode variables (default theme) */
+    --bg-color: linear-gradient(135deg, #f0f4f8, #d9e2ec); /* Background gradient */
+    --card-bg: #fff; /* Card background color */
+    --text-color: #333; /* Primary text color */
+    --heading-color: #2c3e50; /* Heading text color */
+    --border-color: #ddd; /* Border color for elements */
+    --input-bg: #fff; /* Input field background */
+    --vault-item-bg: #f9f9f9; /* Background for individual vault items */
+    --modal-bg: #fff; /* Modal background color */
+    --modal-border: #ddd; /* Modal border color */
+}
+
+/* Dark mode variables - applied when the 'data-theme' attribute is 'dark' */
+[data-theme="dark"] {
+    --bg-color: linear-gradient(135deg, #1a202c, #2d3748);
+    --card-bg: #2d3748;
+    --text-color: #f0f4f8;
+    --heading-color: #e2e8f0;
+    --border-color: #4a5568;
+    --input-bg: #1a202c;
+    --vault-item-bg: #3a4556;
+    --modal-bg: #2d3748;
+    --modal-border: #4a5568;
+}
+
+/* Global body styles */
 body {
-    font-family: 'Roboto', sans-serif;
-    background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
-    min-height: 100vh;
-    display: flex;
+    font-family: 'Roboto', sans-serif; /* Set default font */
+    background: var(--bg-color); /* Apply background using theme variable */
+    min-height: 100vh; /* Ensure body takes at least full viewport height */
+    display: flex; /* Use flexbox for centering content */
     justify-content: center;
     align-items: center;
-    color: #333;
+    color: var(--text-color); /* Apply text color using theme variable */
+    transition: background 0.3s ease; /* Smooth transition for background changes */
 }
 
-/* Container for centering content */
+/* Centering container for main content */
 .container {
     display: flex;
     justify-content: center;
@@ -25,48 +62,50 @@ body {
     width: 100%;
 }
 
-/* Card styling */
+/* Main content card styling */
 .card {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 20px;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     padding: 40px;
     width: 100%;
     max-width: 600px;
     text-align: center;
+    transition: background 0.3s ease;
 }
 
-/* Headings */
+/* Heading styles */
 h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #2c3e50;
+    color: var(--heading-color);
     margin-bottom: 30px;
 }
 
 h2 {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #34495e;
+    color: var(--heading-color);
     margin: 40px 0 20px;
 }
 
-/* Form styling */
+/* General form styling */
 .form {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-/* Select dropdown */
+
+/* Select dropdown styling */
 select {
     padding: 15px;
     font-size: 1.2rem;
-    border: 2px solid #ddd;
+    border: 2px solid var(--border-color);
     border-radius: 10px;
     outline: none;
     width: 100%;
-    background: #fff;
-    color: #333;
+    background: var(--input-bg);
+    color: var(--text-color);
     transition: border-color 0.3s ease;
 }
 
@@ -74,25 +113,30 @@ select:focus {
     border-color: #2980b9;
 }
 
-/* Custom site input (reuses existing input styles, just ensure .hidden works) */
+/* Utility class to hide elements */
 .hidden {
     display: none;
 }
+
+/* Form label styling */
 label {
     font-size: 1.2rem;
-    color: #34495e;
+    color: var(--heading-color);
     margin-bottom: 5px;
 }
 
+/* Input field styling (text and password) */
 input[type="text"],
 input[type="password"] {
     padding: 15px;
     font-size: 1.2rem;
-    border: 2px solid #ddd;
+    border: 2px solid var(--border-color);
     border-radius: 10px;
     outline: none;
     transition: border-color 0.3s ease;
     width: 100%;
+    background: var(--input-bg);
+    color: var(--text-color);
 }
 
 input[type="text"]:focus,
@@ -100,7 +144,7 @@ input[type="password"]:focus {
     border-color: #2980b9;
 }
 
-/* Buttons */
+/* General button styling */
 .btn {
     padding: 15px 30px;
     font-size: 1.2rem;
@@ -119,6 +163,7 @@ input[type="password"]:focus {
     background: #2980b9;
 }
 
+/* Primary button style */
 .btn.primary {
     background: #3498db;
 }
@@ -127,6 +172,7 @@ input[type="password"]:focus {
     background: #2980b9;
 }
 
+/* Secondary button style */
 .btn.secondary {
     background: #7f8c8d;
 }
@@ -135,6 +181,7 @@ input[type="password"]:focus {
     background: #6c757d;
 }
 
+/* Danger button style (e.g., delete) */
 .btn.danger {
     background: #e74c3c;
 }
@@ -143,12 +190,13 @@ input[type="password"]:focus {
     background: #c0392b;
 }
 
-/* Delete button as an 'x' */
+/* Container for inline delete form */
 .delete-form {
     display: inline-block;
     margin-left: 15px;
 }
 
+/* Small circular delete button ('x') */
 .delete-btn {
     background: #e74c3c;
     border: none;
@@ -169,80 +217,192 @@ input[type="password"]:focus {
     background: #c0392b;
 }
 
-/* Messages */
+/* Edit button style (pencil icon) */
+.edit-btn {
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: #3498db;
+}
+
+.edit-btn svg {
+    vertical-align: middle;
+}
+
+/* Styling for feedback messages (error/success) */
 .message {
     padding: 15px;
     border-radius: 10px;
     font-size: 1.2rem;
     margin-bottom: 20px;
+    text-align: left;
 }
 
+/* Error message specific styles */
 .message.error {
     color: #e74c3c;
     background: #fceae9;
+    border-left: 4px solid #e74c3c;
 }
 
+/* Success message specific styles */
 .message.success {
     color: #27ae60;
     background: #e9f7ef;
     white-space: pre-wrap; /* Preserve line breaks for mnemonic */
+    border-left: 4px solid #27ae60;
 }
 
-/* Vault list */
+/* Title within success message */
+.success-title {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+/* Container for the list of vault items */
 .vault-list {
     margin-bottom: 30px;
 }
 
+/* Individual vault item styling */
 .vault-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f9f9f9;
+    background: var(--vault-item-bg);
     padding: 15px;
     border-radius: 10px;
     font-size: 1.2rem;
     margin-bottom: 15px;
     word-break: break-all;
+    color: var(--text-color);
+    transition: background 0.3s ease;
 }
 
+/* Site name styling within vault item */
 .site {
-    cursor: pointer;
-    color: #34495e;
+    flex: 0 0 auto;
+    text-align: left;
+    margin-right: 10px;
+    color: var(--heading-color);
     font-weight: 700;
 }
 
-.password {
-    margin-left: 10px;
+/* Username styling within vault item */
+.username {
+    flex: 1;
+    text-align: left;
+    margin-left: 5px;
     color: #7f8c8d;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.hidden {
+/* Password display styling (when shown) */
+.password {
+    margin-left: 10px;
+    margin-right: 10px;
+    color: #7f8c8d;
+    text-align: right;
+}
+
+/* Category tag styling */
+.category {
+    margin-left: 5px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    background-color: var(--border-color);
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+/* Category header for grouping vault items */
+.category-header {
+    font-size: 1.2rem;
+    color: var(--heading-color);
+    margin: 15px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    cursor: pointer; /* Make it look clickable */
+    user-select: none; /* Prevent text selection */
+}
+
+/* Toggle indicator (arrow) within category header */
+.category-header .toggle-indicator {
+    float: right;
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+}
+
+/* Rotate indicator when category is collapsed */
+.category-header.collapsed .toggle-indicator {
+    transform: rotate(-90deg);
+}
+
+/* Hide category content when collapsed */
+.category-content.collapsed {
     display: none;
 }
 
-
-/* Strength indicators */
+/* General info text styling */
 .info {
     font-size: 1.4rem;
     margin: 20px 0;
 }
 
+/* Text color for weak strength */
 .weak {
     color: #e74c3c;
     font-weight: 700;
 }
 
+/* Text color for medium strength */
 .medium {
     color: #f39c12;
     font-weight: 700;
 }
 
+/* Text color for strong strength */
 .strong {
     color: #27ae60;
     font-weight: 700;
 }
 
-/* Tips list */
+/* Small circular indicator for password strength in vault list */
+.strength-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+/* Background color for weak strength indicator */
+.strength-indicator.weak {
+    background-color: #e74c3c;
+}
+
+/* Background color for medium strength indicator */
+.strength-indicator.medium {
+    background-color: #f39c12;
+}
+
+/* Background color for strong strength indicator */
+.strength-indicator.strong {
+    background-color: #27ae60;
+}
+
+/* Styling for improvement tips list */
 .tips {
     list-style: none;
     margin: 20px 0;
@@ -255,7 +415,7 @@ input[type="password"]:focus {
     color: #7f8c8d;
 }
 
-/* Button group */
+/* Container for grouping buttons */
 .button-group {
     display: flex;
     flex-wrap: wrap;
@@ -264,28 +424,302 @@ input[type="password"]:focus {
     margin-top: 30px;
 }
 
+/* Form used for inline actions (e.g., password check) */
 .inline-form {
     display: flex;
     gap: 15px;
     align-items: center;
 }
 
+/* Input field used within an inline form */
 .inline-input {
     padding: 12px;
     font-size: 1.2rem;
-    border: 2px solid #ddd;
+    border: 2px solid var(--border-color);
     border-radius: 10px;
     outline: none;
     width: 250px;
+    background: var(--input-bg);
+    color: var(--text-color);
 }
 
-/* Responsive design */
+/* Modal backdrop (semi-transparent background) */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+}
+
+/* Styles for active (visible) modal backdrop */
+.modal-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Modal dialog box styling */
+.modal {
+    background: var(--modal-bg);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+    color: var(--text-color);
+    border-color: var(--modal-border);
+}
+
+/* Animate modal position when backdrop becomes active */
+.modal-backdrop.active .modal {
+    transform: translateY(0);
+}
+
+/* Modal header section */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--modal-border);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+/* Modal close button ('x') */
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #7f8c8d;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.modal-close:hover {
+    background-color: #f1f1f1;
+}
+
+/* Modal body content area */
+.modal-body {
+    padding: 20px;
+}
+
+/* Modal footer section (for buttons) */
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--modal-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Grouping label and input within modals */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Range slider styling */
+input[type="range"] {
+    width: 100%;
+    margin: 10px 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    outline: none;
+}
+
+/* Style for the slider thumb (webkit browsers) */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #3498db;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Style for the slider thumb (Firefox) */
+input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #3498db;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Container for checkboxes and their labels */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Input group for password generator (input + copy button) */
+.password-generator {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.password-generator input {
+    flex: 1;
+    height: 40px !important;
+}
+
+.password-generator button {
+    height: 40px !important;
+    padding: 0 12px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Theme toggle button styling */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: var(--card-bg);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* SVG icon styling within theme toggle */
+.theme-toggle svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--text-color);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Header section above the vault list */
+.vault-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+/* Search icon button styling */
+.search-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-icon:hover {
+    background: var(--border-color);
+}
+
+/* Search input box container */
+.search-box {
+    position: absolute;
+    right: 0;
+    top: 0;
+    animation: fadeIn 0.2s ease;
+}
+
+/* Fade-in animation keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Search input field styling */
+#search-input {
+    padding: 8px 12px;
+    border-radius: 18px;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    background: var(--input-bg);
+    color: var(--text-color);
+    width: 100px; 
+    outline: none;
+}
+
+#search-input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Responsive design adjustments for smaller screens */
 @media (max-width: 600px) {
+    /* Adjust vault header layout */
+    .vault-header {
+        flex-direction: column;
+        align-items: stretch;   
+    }
+    
+    /* Adjust search box position/size */
+    .search-box {
+        margin-top: 10px;
+    }
+}
+
+/* Responsive design adjustments for smaller screens */
+@media (max-width: 600px) {
+    /* Reduce card padding */
     .card {
         padding: 20px;
         max-width: 100%;
     }
 
+    /* Reduce heading font sizes */
     h1 {
         font-size: 2rem;
     }
@@ -294,6 +728,7 @@ input[type="password"]:focus {
         font-size: 1.5rem;
     }
 
+    /* Reduce font size for inputs and buttons */
     input[type="text"],
     input[type="password"],
     .btn,
@@ -302,19 +737,303 @@ input[type="password"]:focus {
         padding: 12px;
     }
 
+    /* Make inline input take full width */
     .inline-input {
         width: 200px;
     }
 
+    /* Stack buttons in button group */
     .button-group {
         flex-direction: column;
         align-items: center;
     }
 
+    /* Adjust delete button size/position if needed */
     .delete-btn {
         font-size: 1rem;
         width: 20px;
         height: 20px;
         line-height: 20px;
     }
+
+    /* Adjust modal width */
+    .modal {
+        width: 95%;
+        max-width: none;
+    }
+}
+
+/* Dark mode specific adjustments (if needed, e.g., for hover effects) */
+@media (prefers-color-scheme: dark) {
+    /* Adjust modal styles for dark mode if necessary */
+    .modal {
+        background: var(--modal-bg);
+        color: var(--text-color);
+    }
+    
+    /* Adjust modal header/footer borders */
+    .modal-header, .modal-footer {
+        border-color: var(--modal-border);
+    }
+    
+    /* Adjust modal close button hover */
+    .modal-close:hover {
+        background-color: #444;
+    }
+    
+    /* Adjust range slider background */
+    input[type="range"] {
+        background: #444;
+    }
+}
+
+/* Container for input fields with buttons inside */
+.input-button-container {
+    position: relative;
+}
+
+/* Position the generate password button inside the password input field */
+.generate-password-btn {
+    position: absolute !important;
+    right: 5px !important;
+    top: 5px !important;
+    padding: 10px !important;
+    height: calc(100% - 10px) !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Position the check password button inside its input field */
+.check-password-btn {
+    position: absolute !important;
+    right: 5px !important;
+    top: 5px !important;
+    padding: 10px !important;
+    height: calc(100% - 10px) !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Styling for the 'Undo' link/button */
+.undo-link {
+    background: none;
+    border: none;
+    color: #3498db;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    display: inline;
+    margin-left: 0;
+    font-weight: normal;
+}
+
+.undo-link:hover {
+    color: #2980b9;
+}
+
+/* Container specific to the login/register page */
+.auth-container {
+    max-width: 440px;
+    margin: 0 auto;
+}
+
+/* Branding section (Logo + Tagline) */
+.brand {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.brand-logo {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+}
+
+.brand-tagline {
+    color: var(--text-light, #64748b);
+    font-size: 1rem;
+}
+
+/* Container for login/register tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+/* Individual tab styling */
+.tab {
+    flex: 1;
+    text-align: center;
+    padding: 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-light, #64748b);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+/* Active tab styling */
+.tab.active {
+    color: var(--heading-color);
+    border-bottom: 2px solid var(--heading-color);
+}
+
+/* Content area for each tab */
+.tab-content {
+    display: none;
+}
+
+/* Show active tab content */
+.tab-content.active {
+    display: block;
+}
+
+/* Title within tab content */
+.section-title {
+    font-size: 1.25rem;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+    text-align: left;
+}
+
+/* Subtitle or description text */
+.section-subtitle {
+    font-size: 0.9375rem;
+    color: var(--text-light, #64748b);
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+/* Display area for the generated mnemonic phrase */
+.mnemonic-display {
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 1px solid #e9ecef;
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    word-spacing: 0.5rem;
+    color: #2c3e50;
+}
+
+/* Welcome title with icon */
+.welcome-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.welcome-title svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke: var(--heading-color);
+}
+
+/* Styling for individual breach alert items in the modal */
+.breach-item {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: var(--vault-item-bg);
+    border: 1px solid var(--border-color);
+}
+
+/* Site name within breach item */
+.breach-item .site-name {
+    font-weight: bold;
+    color: var(--heading-color);
+    margin-bottom: 0.5rem;
+    font-size: 1.1em;
+}
+
+/* Breach summary text */
+.breach-item .summary {
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+/* Link to news article */
+.breach-item .news-link {
+    font-size: 0.9em;
+    color: #3498db;
+    text-decoration: none;
+}
+
+.breach-item .news-link:hover {
+    text-decoration: underline;
+}
+
+/* Timestamp for breach report */
+.breach-item .timestamp {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+/* Loading spinner animation */
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border-left-color: #09f;
+    margin: 20px auto;
+    animation: spin 1s ease infinite;
+}
+
+/* Keyframes for spinner rotation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Sidebar logo container */
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    padding-top: 30px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Sidebar logo icon styling */
+.sidebar-logo-icon {
+    width: 24px;
+    height: 24px;
+    stroke: var(--heading-color);
+    margin-right: 10px;
+}
+
+/* Sidebar logo text styling */
+.sidebar-logo-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    letter-spacing: 0.5px;
+}
+
+/* Ensure news link is not underlined by default */
+.breach-item .news-link {
+    text-decoration: none;
 }

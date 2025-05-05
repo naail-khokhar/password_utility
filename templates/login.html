@@ -3,38 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Password Utility</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>KeyVault - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
-</head>
+    <link rel="icon" id="favicon" type="image/png" href="{{ url_for('static', filename='light-icon.png') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const favicon = document.getElementById('favicon');
+        function updateFavicon() {
+            const theme = document.documentElement.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            favicon.href = "{{ url_for('static', filename='') }}" + (theme === 'dark' ? 'dark-icon.png' : 'light-icon.png');
+        }
+        updateFavicon();
+        // Listen for theme changes
+        const observer = new MutationObserver(updateFavicon);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+    </script>
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <h1>Password Utility</h1>
-            <h2>Login</h2>
-            {% if error %}
-                <p class="message error">{{ error }}</p>
-            {% endif %}
-            {% if success %}
-                <p class="message success">{{ success }}</p>
-            {% endif %}
-            <form method="POST" action="/login" class="form">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter your username" required>
-                <label for="mnemonic">Mnemonic</label>
-                <input type="password" id="mnemonic" name="mnemonic" placeholder="Enter your mnemonic" required>
-                <button type="submit" class="btn primary">Login</button>
-            </form>
-             <label style="display: block; text-align: center; margin: 20px 0; padding: 10px; font-weight: bold;">or</label>
-            <h2>Register</h2>
-            <form method="POST" action="/register" class="form">
-                <label for="reg-username">Username</label>
-                <input type="text" id="reg-username" name="username" placeholder="Choose a username" required>
-                <button type="submit" class="btn primary">Register</button>
-            </form>
+    <!--
+        Login and registration page for the KeyVault password manager.
+        - Allows users to sign in with username and mnemonic.
+        - Registration issues a new mnemonic phrase for encryption.
+        - Uses tabbed interface for switching between login and register.
+    -->
+    <!-- Theme toggle button -->
+    <div class="theme-toggle" onclick="toggleTheme()" id="theme-toggle">
+        <div id="theme-toggle-icon">
+            <!-- Icon will be inserted by theme.js -->
         </div>
     </div>
+    
+    <div class="container">
+        <div class="card">
+            <div class="auth-container">
+                <div class="brand">
+                    <div class="brand-logo">KeyVault</div>
+                    <div class="brand-tagline">Secure. Simple. Smart.</div>
+                </div>
+                
+                {% if error %}
+                    <p class="message error">{{ error }}</p>
+                {% endif %}
+                
+                {% if success %}
+                    <div class="message success">
+                        {% if "mnemonic" in success %}
+                            <h3 class="success-title">Account Created Successfully! 🎉</h3>
+                            <p>Your mnemonic phrase:</p>
+                            <div class="mnemonic-display">{{ success.split("mnemonic is: ")[1].split(".")[0] }}</div>
+                            <p><strong>Important:</strong> This phrase cannot be recovered if lost. Store it securely.</p>
+                        {% else %}
+                            <h3 class="success-title">Success</h3>
+                            <p>{{ success }}</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <div class="tabs">
+                    <div class="tab active" id="login-tab" onclick="switchTab('login')">Login</div>
+                    <div class="tab" id="register-tab" onclick="switchTab('register')">Register</div>
+                </div>
+                
+                <div class="tab-content active" id="login-content">
+                    <div class="welcome-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13 12H3"></path>
+                        </svg>
+                        Welcome Back
+                    </div>
+                    <p class="section-subtitle">Sign in to access your secure vault</p>
+                    
+                    <form method="POST" action="/login" class="form">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" placeholder="Enter your username" required autofocus>
+                        
+                        <label for="mnemonic">Mnemonic</label>
+                        <input type="password" id="mnemonic" name="mnemonic" placeholder="Enter your mnemonic phrase" required>
+                        
+                        <button type="submit" class="btn primary">Sign In</button>
+                    </form>
+                </div>
+                
+                <div class="tab-content" id="register-content">
+                    <div class="welcome-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
+                        Create New Account
+                    </div>
+                    <p class="section-subtitle">Set up a secure password vault in seconds</p>
+                    
+                    <form method="POST" action="/register" class="form">
+                        <label for="reg-username">Username</label>
+                        <input type="text" id="reg-username" name="username" placeholder="Choose a username" required>
+                        
+                        <p class="section-subtitle small">
+                            After registration, you'll receive a unique 8-word mnemonic phrase.
+                            This will be used to encrypt your vault and can't be changed or recovered. <strong>Save it securely</strong>.
+                        </p>
+                        
+                        <button type="submit" class="btn primary">Create Account</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs and content
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Show selected tab and content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            document.getElementById(tabName + '-content').classList.add('active');
+        }
+        
+        // If there's a success message about mnemonic, switch to login tab
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.querySelector('.mnemonic-display')) {
+                switchTab('login');
+            }
+        });
+    </script>
 </body>
 </html>

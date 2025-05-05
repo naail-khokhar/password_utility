@@ -13,6 +13,9 @@ import pandas as pd
 import joblib
 from argon2.low_level import hash_secret_raw, Type
 import logging
+from categories import get_category
+import zlib                        # added for compression_ratio
+from collections import Counter    # added for bigram_entropy
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,6 +28,9 @@ model = joblib.load("password_health_model.pkl")
 with open("wordlist.txt", "r") as f:
     wordlist = [word.strip() for word in f.read().splitlines()]
 
+# Database files
+AUTH_DB = "auth.db"
+VAULTS_DB = "vaults.db"
 
 # Encryption utilities
 def derive_key(mnemonic: str, salt: bytes) -> bytes:
@@ -54,49 +60,96 @@ def decrypt_data(encrypted_data: bytes, key: bytes) -> str:
 
 # Database utilities
 def init_db():
-    with sqlite3.connect("vault.db") as conn:
+    # Initialize auth.db
+    with sqlite3.connect(AUTH_DB) as conn:
         cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, salt BLOB, vault BLOB)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, salt BLOB)")
+    # Initialize vaults.db
+    with sqlite3.connect(VAULTS_DB) as conn:
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS user_vaults (username TEXT PRIMARY KEY, vault BLOB)")
 
 
 def create_user(username: str, salt: bytes, encrypted_vault: bytes):
-    with sqlite3.connect("vault.db") as conn:
+    # Insert into auth.db
+    with sqlite3.connect(AUTH_DB) as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO users (username, salt, vault) VALUES (?, ?, ?)",
-                       (username, salt, encrypted_vault))
+        cursor.execute("INSERT OR REPLACE INTO users (username, salt) VALUES (?, ?)",
+                       (username, salt))
+    # Insert into vaults.db
+    with sqlite3.connect(VAULTS_DB) as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO user_vaults (username, vault) VALUES (?, ?)",
+                       (username, encrypted_vault))
 
 
 def username_exists(username):
-    with sqlite3.connect("vault.db") as conn:
+    # Check in auth.db
+    with sqlite3.connect(AUTH_DB) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
         return cursor.fetchone() is not None
 
 
 def get_vault(username: str) -> tuple:
-    with sqlite3.connect("vault.db") as conn:
+    salt = None
+    vault = None
+    # Get salt from auth.db
+    with sqlite3.connect(AUTH_DB) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT salt, vault FROM users WHERE username = ?", (username,))
-        return cursor.fetchone() or (None, None)
+        cursor.execute("SELECT salt FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        if result:
+            salt = result[0]
+
+    # Get vault from vaults.db if salt was found
+    if salt:
+        with sqlite3.connect(VAULTS_DB) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT vault FROM user_vaults WHERE username = ?", (username,))
+            result = cursor.fetchone()
+            if result:
+                vault = result[0]
+
+    return salt, vault  # Returns (None, None) if user not found or vault missing
 
 
 def delete_user(username):
-    with sqlite3.connect("vault.db") as conn:
+    # Delete from auth.db
+    with sqlite3.connect(AUTH_DB) as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+    # Delete from vaults.db
+    with sqlite3.connect(VAULTS_DB) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_vaults WHERE username = ?", (username,))
 
 
 # Password features
 def password_features(password: str) -> dict:
-    return {
+    # Extract features matching those used during model training
+    features = {
         "length": len(password),
         "entropy": math.log2(len(set(password)) ** len(password)) if password else 0,
         "has_upper": int(bool(re.search(r"[A-Z]", password))),
         "has_symbol": int(bool(re.search(r"[^A-Za-z0-9]", password))),
         "has_leet": int(any(c in "@3!0" for c in password)),
-        "repetition": int(bool(re.search(r"(.)\1{2,}", password))),
+        "repetition": int(bool(re.search(r"(.)\\1{2,}", password))),
+        "digit_ratio": sum(c.isdigit() for c in password) / len(password) if password else 0,
+        "unique_ratio": len(set(password)) / len(password) if password else 0,
+        "bigram_entropy": 0,
+        "compression_ratio": 1.0,
         "hibp_breached": check_hibp(password)
     }
+    if password and len(password) >= 2:
+        bigrams = [password[i:i+2] for i in range(len(password)-1)]
+        counts = Counter(bigrams)
+        total = sum(counts.values())
+        features["bigram_entropy"] = -sum(
+            (cnt/total) * math.log2(cnt/total) for cnt in counts.values()
+        ) if total else 0
+        features["compression_ratio"] = len(zlib.compress(password.encode())) / len(password)
+    return features
 
 
 def check_hibp(password: str) -> int:
@@ -106,15 +159,50 @@ def check_hibp(password: str) -> int:
     return int(suffix in response.text)
 
 
-def generate_password(length=12, use_symbols=True):
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    if use_symbols:
-        alphabet += "!@#$%^&*"
-    return "".join(secrets.choice(alphabet) for _ in range(length))
+def generate_password(length=12, use_symbols=True, memorable=False):
+    if memorable:
+        # Generate a memorable password using words from wordlist with numbers
+        words = []
+        total_length = 0
+        # Add words until we approach but don't exceed the target length
+        while total_length < length - 4:  # Leave room for numbers
+            word = secrets.choice(wordlist)
+            if total_length + len(word) > length - 4:
+                break
+            words.append(word)
+            total_length += len(word)
+        
+        # Add numbers at the end
+        numbers = ''.join(secrets.choice("0123456789") for _ in range(min(4, length - total_length)))
+        
+        # Combine words and numbers
+        password = ''.join(words) + numbers
+        
+        # If the password is still too short, add random characters
+        if len(password) < length:
+            extra_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            if use_symbols:
+                extra_chars += "!@#$%^&*"
+            password += ''.join(secrets.choice(extra_chars) for _ in range(length - len(password)))
+            
+        # If password is too long, trim it
+        return password[:length]
+    else:
+        # Generate a random password
+        alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        if use_symbols:
+            alphabet += "!@#$%^&*"
+        return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def generate_mnemonic(length=5) -> str:
     return " ".join(secrets.choice(wordlist) for _ in range(length))
+
+
+def get_password_strength(password):
+    """Get password strength rating: 0 (weak), 1 (medium), 2 (strong)"""
+    features = pd.DataFrame([password_features(password)])
+    return model.predict(features)[0]
 
 
 # GUI Application
@@ -216,28 +304,133 @@ class PasswordManagerApp(tk.Tk):
         self.new_password = tk.Entry(self)
         self.new_password.pack(pady=5)
 
+        # Add Generate Password button
+        generate_btn = ttk.Button(self, text="Generate Password", command=self.show_password_generator)
+        generate_btn.pack(pady=5)
+
         tk.Button(self, text="Add", command=self.add_password).pack(pady=5)
         tk.Button(self, text="Delete Account", command=self.delete_account).pack(pady=5)
         tk.Button(self, text="Logout", command=self.logout).pack()
 
+    def show_password_generator(self):
+        # Create a new top-level window for password generator
+        generator_window = tk.Toplevel(self)
+        generator_window.title("Password Generator")
+        generator_window.geometry("400x300")
+        generator_window.transient(self)  # Make it a modal window
+        generator_window.grab_set()  # Make it take all input
+        
+        ttk.Label(generator_window, text="Password Generator", font=("Roboto", 16, "bold")).pack(pady=10)
+        
+        # Length slider
+        length_frame = ttk.Frame(generator_window)
+        length_frame.pack(fill="x", padx=20, pady=10)
+        ttk.Label(length_frame, text="Length:").pack(side="left")
+        length_value = ttk.Label(length_frame, text="12")
+        length_value.pack(side="right")
+        
+        length_var = tk.IntVar(value=12)
+        length_slider = ttk.Scale(generator_window, from_=8, to=24, variable=length_var, orient="horizontal")
+        length_slider.pack(fill="x", padx=20)
+        
+        # Update the length value label when slider changes
+        def update_length_label(*args):
+            length_value.config(text=str(length_var.get()))
+        
+        length_var.trace_add("write", update_length_label)
+        
+        # Options checkboxes
+        options_frame = ttk.Frame(generator_window)
+        options_frame.pack(fill="x", padx=20, pady=10)
+        
+        symbols_var = tk.BooleanVar(value=True)
+        symbols_check = ttk.Checkbutton(options_frame, text="Include special characters", variable=symbols_var)
+        symbols_check.pack(anchor="w")
+        
+        memorable_var = tk.BooleanVar(value=False)
+        memorable_check = ttk.Checkbutton(options_frame, text="Memorable password", variable=memorable_var)
+        memorable_check.pack(anchor="w")
+        
+        # Generated password field
+        password_frame = ttk.Frame(generator_window)
+        password_frame.pack(fill="x", padx=20, pady=10)
+        ttk.Label(password_frame, text="Generated Password:").pack(anchor="w")
+        
+        password_var = tk.StringVar()
+        password_entry = ttk.Entry(password_frame, textvariable=password_var, width=30)
+        password_entry.pack(fill="x", pady=5)
+        
+        # Buttons
+        buttons_frame = ttk.Frame(generator_window)
+        buttons_frame.pack(fill="x", padx=20, pady=10)
+        
+        def generate():
+            length = length_var.get()
+            use_symbols = symbols_var.get()
+            memorable = memorable_var.get()
+            password = generate_password(length, use_symbols, memorable)
+            password_var.set(password)
+        
+        def use_password():
+            self.new_password.delete(0, tk.END)
+            self.new_password.insert(0, password_var.get())
+            generator_window.destroy()
+        
+        generate_btn = ttk.Button(buttons_frame, text="Generate", command=generate)
+        generate_btn.pack(side="left", padx=5)
+        
+        copy_btn = ttk.Button(buttons_frame, text="Copy", command=lambda: self.clipboard_clear() or self.clipboard_append(password_var.get()))
+        copy_btn.pack(side="left", padx=5)
+        
+        use_btn = ttk.Button(buttons_frame, text="Use This Password", command=use_password)
+        use_btn.pack(side="right", padx=5)
+        
+        # Generate a password immediately
+        generate()
+
     def update_vault_display(self):
         for widget in self.vault_frame.winfo_children():
             widget.destroy()
+            
+        # Group passwords by category
+        categories = {}
         for i, entry in enumerate(self.vault["passwords"]):
-            frame = ttk.Frame(self.vault_frame)
-            frame.pack(fill="x", pady=2)
-            site_label = ttk.Label(frame, text=entry["site"], cursor="hand2")
-            site_label.pack(side="left")
-            site_label.bind("<Button-1>", lambda e, idx=i: self.toggle_password(idx))
-            pwd_var = tk.StringVar(value="****")
-            pwd_label = ttk.Label(frame, textvariable=pwd_var)
-            pwd_label.pack(side="left", padx=10)
-            self.vault[i]["pwd_var"] = pwd_var
-            ttk.Button(frame, text="x", command=lambda idx=i: self.delete_password(idx), width=2).pack(side="right")
+            category = entry.get("category", "Other")
+            if category not in categories:
+                categories[category] = []
+            categories[category].append((i, entry))
+            
+        # Display passwords by category
+        for category, entries in categories.items():
+            # Add category header
+            category_label = ttk.Label(self.vault_frame, text=category, font=("Roboto", 11, "bold"))
+            category_label.pack(anchor="w", pady=(10, 5))
+            
+            # Display entries in this category
+            for i, entry in entries:
+                frame = ttk.Frame(self.vault_frame)
+                frame.pack(fill="x", pady=2)
+                
+                # Add strength indicator (small colored circle) - now first and bigger
+                strength = entry.get("strength", 0)  # Default to 0 if not present
+                strength_colors = {0: "#e74c3c", 1: "#f39c12", 2: "#27ae60"}  # Red, Orange, Green
+                strength_label = tk.Label(frame, text="●", fg=strength_colors[strength], 
+                                         font=("", 14), padx=0)
+                strength_label.pack(side="left", padx=(0, 5))
+                
+                site_label = ttk.Label(frame, text=entry["site"], cursor="hand2")
+                site_label.pack(side="left")
+                site_label.bind("<Button-1>", lambda e, idx=i: self.toggle_password(idx))
+                
+                pwd_var = tk.StringVar(value="****")
+                pwd_label = ttk.Label(frame, textvariable=pwd_var)
+                pwd_label.pack(side="left", padx=10)
+                entry["pwd_var"] = pwd_var
+                ttk.Button(frame, text="x", command=lambda idx=i: self.delete_password(idx), width=2).pack(side="right")
 
     def toggle_password(self, index):
         entry = self.vault["passwords"][index]
-        pwd_var = self.vault[index]["pwd_var"]
+        pwd_var = entry.get("pwd_var")
         current = pwd_var.get()
         pwd_var.set(entry["password"] if current == "****" else "****")
 
@@ -259,10 +452,20 @@ class PasswordManagerApp(tk.Tk):
         if not password:
             messagebox.showerror("Error", "Password required")
             return
-        self.vault["passwords"].append({"site": site, "password": password})
+        category = get_category(site)
+        strength = get_password_strength(password)
+        self.vault["passwords"].append({
+            "site": site, 
+            "password": password,
+            "category": category,
+            "strength": int(strength)
+        })
         encrypted_vault = encrypt_data(json.dumps(self.vault), self.key)
-        salt, _ = get_vault(self.username)
-        create_user(self.username, salt, encrypted_vault)
+        # Update only vaults.db
+        with sqlite3.connect(VAULTS_DB) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE user_vaults SET vault = ? WHERE username = ?", (encrypted_vault, self.username))
+            conn.commit()
         self.update_vault_display()
         self.new_password.delete(0, tk.END)
 
@@ -270,8 +473,11 @@ class PasswordManagerApp(tk.Tk):
         if 0 <= index < len(self.vault["passwords"]):
             deleted = self.vault["passwords"].pop(index)
             encrypted_vault = encrypt_data(json.dumps(self.vault), self.key)
-            salt, _ = get_vault(self.username)
-            create_user(self.username, salt, encrypted_vault)
+            # Update only vaults.db
+            with sqlite3.connect(VAULTS_DB) as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE user_vaults SET vault = ? WHERE username = ?", (encrypted_vault, self.username))
+                conn.commit()
             self.update_vault_display()
             messagebox.showinfo("Success", f"Password for {deleted['site']} deleted")
 

@@ -3,6 +3,11 @@ build/
 dist/
 .idea/
 flask_session/
+__pycache__/
 .DS_Store
 gui.spec
 static/.DS_Store
+api_keys.txt
+auth.db
+vaults.db
+breaches.db

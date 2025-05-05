@@ -6,10 +6,22 @@
     <title>Password Health - Password Utility</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
-</head>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
 </head>
 <body>
+    <!--
+        Password health result page.
+        - Shows password strength and improvement tips.
+        - Used after checking a password's security.
+    -->
+    <!-- Theme toggle button -->
+    <div class="theme-toggle" onclick="toggleTheme()" id="theme-toggle">
+        <div id="theme-toggle-icon">
+            <!-- Icon will be inserted by theme.js -->
+        </div>
+    </div>
+    
     <div class="container">
         <div class="card">
             <h1>Password Health</h1>
@@ -24,7 +36,7 @@
                     {% endfor %}
                 </ul>
             {% endif %}
-            <a href="/" class="btn primary">Back to Dashboard</a>
+            <a href="/dashboard" class="btn primary">Back to Dashboard</a>
         </div>
     </div>
 </body>
